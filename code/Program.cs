@@ -12,18 +12,44 @@ namespace code
 
         static void Main(string[] args)
         {
-            var l = _scanner.Integer();
-            var b = new List<int>();
-            for (int i = 0; i < l; i++) b.Add(_scanner.Integer());
-            var a = new int[l];
-            for (int i = 1; i < l; i++)
-                a[i] = b[i - 1] ^ a[i - 1];
+            MyMath.Precal_FactAndInv(1000000007L);
 
-            if (b[l - 1] == (a[l - 1] ^ a[0]))
-                foreach (var e in a) IO.Printer.Out.WriteLine(e);
-            else
-                IO.Printer.Out.WriteLine(-1);
+            var n = _scanner.Integer();
+            var m = _scanner.Integer();
+
+            var f = GetPrimeFact(m);
+            //foreach (var e in f) Console.Write(e + " ");
+            //Console.WriteLine();
+
+            var ret = 1L;
+            foreach(var t in f)
+            {
+                ret *= MyMath.GetMcn_p(t.Value + n - 1, n - 1, 1000000007);
+                ret %= 1000000007L;
+            }
+
+            IO.Printer.Out.WriteLine(ret);
             IO.Printer.Out.Flush();
+        }
+       
+        static Dictionary<int, int> GetPrimeFact(int n)
+        {
+            var ret = new Dictionary<int, int>();
+            for (int d = 2; d * d <= n; d++)
+            {
+                while (n % d == 0)
+                {
+                    if (!ret.ContainsKey(d)) ret[d] = 0;
+                    ret[d]++;
+                    n /= d;
+                }
+            }
+            if(n != 1)
+            {
+                if (!ret.ContainsKey(n)) ret[n] = 0;
+                ret[n]++;
+            }
+            return ret;
         }
     }
 
@@ -831,6 +857,242 @@ namespace code
         public static bool Eq(double a, double b)
         {
             return Math.Abs(a - b) < 1e-9;
+        }
+    }
+
+    #endregion
+
+    #region library_Math
+
+    public static class MyMath
+    {
+        // m種類から重複なくn個を選ぶ組み合わせ
+        public static Int64 GetMcn(int m, int n)
+        {
+            Int64 val;
+            if (m < n) return 0;
+            n = Math.Min(n, m - n);
+            if (n == 0) val = 1;
+            else val = GetMcn(m - 1, n - 1) * m / n;
+            return val;
+        }
+
+        // m種類から重複なくn個を選んで並べる組み合わせ
+        public static Int64 GetMpn(int m, int n)
+        {
+            if (n > m) return 0L;
+            Int64 ret = m;
+            for (int i = 0; i < n - 1; i++)
+            {
+                ret *= (m - i - 1);
+            }
+            return ret;
+        }
+
+        // m種類から重複を許してn個を選ぶ組み合わせ（順番は無視）
+        public static Int64 GetMhn(int m, int n)
+        {
+            return GetMcn(m + n - 1, n);
+        }
+
+        static Int64[] fact = new Int64[500005];
+        static Int64[] inv = new Int64[500005];
+
+        /// <summary>
+        /// FOR TEST - mCn % p (p should be prime number)
+        /// </summary>
+        public static Int64 GetMcn_p_Simple(Int64 m, Int64 n, Int64 p)
+        {
+            // m! / ( n! ( m - n )! )
+            return fact[m] * inv[m - n] % p * inv[n] % p;
+        }
+
+        /// <summary>
+        ///  mCn % p (p should be prime number)
+        ///  use Lucas's theorem
+        ///   - need pre-calculation using the mod
+        /// </summary>
+        public static Int64 GetMcn_p(Int64 m, Int64 n, Int64 p)
+        {
+            if (!(0 <= n && n <= m)) return 0;
+            Int64 ret = 1;
+            for (; n > 0; m /= p, n /= p)
+            {
+                Int64 n0 = m % p, k0 = n % p;
+                if (n0 < k0) return 0;
+                ret = ret * GetMcn_p_Simple(n0, k0, p);
+                ret %= p;
+            }
+            return ret;
+        }
+
+        /// <summary>
+        ///  mCn % p (p should be prime number)
+        ///  use Lucas's theorem (No pre-calculation needed)
+        /// </summary>
+        public static Int64 GetMcn_p_NoPrecalc(int m, int n, int p)
+        {
+            if (p < 2) return GetMcn(m, n);
+
+            var dm1 = m / p;
+            var dm2 = m % p;
+            var dn1 = n / p;
+            var dn2 = n % p;
+
+            if ((dm2 < dn2) || (dm1 < dn1)) return 0;
+
+            return GetMcn(dm1, dn1) * GetMcn(dm2, dn2) % p;
+        }
+
+        public static void Precal_FactAndInv(Int64 mod)
+        {
+            fact[0] = 1;
+            inv[0] = ModInv(1, mod);
+
+            for (Int64 i = 1; i < 500005; i++)
+            {
+                fact[i] = (fact[i - 1] * i) % mod;
+                inv[i] = ModInv(fact[i], mod);
+            }
+        }
+
+        public static Int64 ModInv(Int64 a, Int64 m)
+        {
+            Int64 x = 0, y = 0;
+            ExtGcd(a, m, ref x, ref y);
+            if (x < 0) x += m; //modInv will never be negative
+            return x;
+        }
+
+        public static Int64 ModPow(Int64 x, Int64 n, Int64 mod)
+        {
+            Int64 ret = 1;
+            while (n > 0)
+            {
+                if ((n & 1) == 1) ret = ret * x % mod;
+                x = x * x % mod;
+                n >>= 1;
+            }
+            return ret;
+        }
+
+        //等差数列の和を逆元なしで求める。O(LogN)。
+        public static Int64 ModPowSum(Int64 r, Int64 n, Int64 mod)
+        {
+            if (n == 0) return 0;
+
+            //nが奇数：1 + r + ... + r^(n-1) = 1 + r(1 + r + ... + r^(n-2))
+            if (n % 2 == 1) return (ModPowSum(r, n - 1, mod) * r + 1) % mod;
+
+            //nが偶数：1 + r + ... + r^(n-1) = ( 1 + r + ... + r^(n/2-1)) +  r^(n/2) x ( 1 + r + ... + r^(n/2-1))
+            Int64 result = ModPowSum(r, n / 2, mod);
+            return (result * ModPow(r, n / 2, mod) + result) % mod;
+        }
+
+        public static void Sieve(int[] prime, bool[] isPrime)
+        {
+            for (int i = 0; i < prime.Length; i++) prime[i] = -1;
+            for (int i = 0; i < isPrime.Length; i++) isPrime[i] = true;
+            isPrime[0] = isPrime[1] = false;
+
+            var idx = 0;
+            for (int i = 2; i < isPrime.Length; i++)
+            {
+                if (isPrime[i])
+                {
+                    prime[++idx] = i;
+                    for (int j = 2 * i; j < isPrime.Length; j += i) isPrime[j] = false;
+                }
+            }
+        }
+
+        // returns primes in [a, b)
+        public static void SegSieve(int a, int b, bool[] isPrime)
+        {
+            for (int i = 0; i < isPrime.Length; i++) isPrime[i] = true;
+            for (int i = 0; i < isPrime.Length; i++)
+            {
+                if (i + a < 2) isPrime[i] = false;
+            }
+
+            var sqrtb = (int)Math.Ceiling(Math.Sqrt(b));
+
+            // prime table of [0, sqrt[b])
+            var primeTable_0_b = new int[sqrtb];
+            var primeTable_0_b_is = new bool[sqrtb];
+
+            Sieve(primeTable_0_b, primeTable_0_b_is);
+
+            foreach (var p in primeTable_0_b)
+            {
+                if (p == -1) continue;
+                var st = (a / p) * p;
+                if (st == 0) st = p;
+                if (st == p) st += p;
+                while (st < b)
+                {
+                    if (st >= a) isPrime[st - a] = false;
+                    st += p;
+                }
+            }
+        }
+
+        public static Int64 ExtGcd(Int64 a, Int64 b, ref Int64 x, ref Int64 y)
+        {
+            Int64 d = a;
+            if (b != 0)
+            {
+                d = ExtGcd(b, a % b, ref y, ref x);
+                y -= (a / b) * x;
+            }
+            else
+            {
+                x = 1;
+                y = 0;
+            }
+            return d;
+        }
+
+        public static Int64 Gcd(Int64 a, Int64 b)
+        {
+            if (a < b)
+            {
+                var tmp = a;
+                a = b;
+                b = tmp;
+            }
+            if (b == 0) return a;
+            var p = a > b ? a : b;
+            return Gcd(b, p % b);
+        }
+
+        //素因数分解
+        public static Dictionary<UInt64, UInt64> GetFactors(UInt64 n)
+        {
+            var ret = new Dictionary<UInt64, UInt64>();
+
+            while (n % 2 == 0)
+            {
+                if (!ret.ContainsKey(2)) ret.Add(2, 0);
+                ret[2]++;
+                n = n / 2;
+            }
+            for (UInt64 i = 3; i <= Math.Sqrt(n); i = i + 2)
+            {
+                while (n % i == 0)
+                {
+                    if (!ret.ContainsKey(i)) ret.Add(i, 0);
+                    ret[i]++;
+                    n = n / i;
+                }
+            }
+            if (n > 2)
+            {
+                if (!ret.ContainsKey(n)) ret.Add(n, 0);
+                ret[n]++;
+            }
+
+            return ret;
         }
     }
 
