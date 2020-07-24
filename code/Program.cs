@@ -12,67 +12,52 @@ namespace code
 
         static void Main(string[] args)
         {
-            MyMath.Precal_FactAndInv(1000000007L);
-
-            var n = _scanner.Integer();
-            var m = _scanner.Integer();
-
-            var f = GetPrimeFact(m);
-            //foreach (var e in f) Console.Write(e + " ");
-            //Console.WriteLine();
-
-            var ret = 1L;
-            foreach(var t in f)
+            var t = _scanner.Integer();
+            for (var c = 0; c < t; c++)
             {
-                ret *= MyMath.GetMcn_p(t.Value + n - 1, n - 1, 1000000007);
-                ret %= 1000000007L;
-            }
-
-            IO.Printer.Out.WriteLine(ret);
-            IO.Printer.Out.Flush();
-        }
-       
-        static Dictionary<int, int> GetPrimeFact(int n)
-        {
-            var ret = new Dictionary<int, int>();
-            for (int d = 2; d * d <= n; d++)
-            {
-                while (n % d == 0)
+                var n = _scanner.Integer();
+                var i_travel = _scanner.ScanLine();
+                var o_travel = _scanner.ScanLine();
+                var uf = new UnionFind(n + 1);
+                for (int i = 0; i < n; i++)
                 {
-                    if (!ret.ContainsKey(d)) ret[d] = 0;
-                    ret[d]++;
-                    n /= d;
+                    if (o_travel[i] == 'N') continue;
+
+                    if (i > 0 && i_travel[i - 1] == 'Y')
+                        uf.Unite(i - 1, i);
+                    if (i < n - 1 && i_travel[i + 1] == 'Y')
+                        uf.Unite(i, i + 1);
+                }
+
+                IO.Printer.Out.WriteLine("Case #{0}:", c + 1);
+                for (int i = 0; i < n; i++)
+                {
+                    for (int j = 0; j < n; j++)
+                    {
+                        IO.Printer.Out.Write(uf.Same(i, j) ? "Y" : "N");
+                    }
+                    IO.Printer.Out.WriteLine();
                 }
             }
-            if(n != 1)
-            {
-                if (!ret.ContainsKey(n)) ret[n] = 0;
-                ret[n]++;
-            }
-            return ret;
-        }
+
+            IO.Printer.Out.Flush();
+        }       
     }
 
     #region library
 
     public class UnionFind
     {
-        List<int> par;
+        List<int> _parent;
 
         public UnionFind(int N)
         {
-            par = new List<int>(N);
-            for (int i = 0; i < N; i++) par.Add(-1);
-        }
-
-        public void Init()
-        {
-            for (int i = 0; i < par.Count; i++) par[i] = -1;
+            _parent = Enumerable.Range(0, N).Select(i => i).ToList();
         }
 
         public int Root(int x)
         {
-            return par[x] >= 0 ? par[x] = Root(par[x]) : x;
+            return _parent[x] == x ? x : _parent[x] = Root(_parent[x]);
         }
 
         public bool Same(int x, int y)
@@ -80,25 +65,9 @@ namespace code
             return Root(x) == Root(y);
         }
 
-        public bool Unite(int x, int y)
+        public void Unite(int x, int y)
         {
-            x = Root(x);
-            y = Root(y);
-            if (x == y) return false;
-            if (par[x] > par[y])
-            {
-                var tmp = y;
-                y = x;
-                x = tmp;
-            }
-            par[x] += par[y];
-            par[y] = x;
-            return true;
-        }
-
-        public int Size(int x)
-        {
-            return -par[Root(x)];
+            _parent[Root(x)] = Root(y);
         }
     }
 
