@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,44 +13,42 @@ namespace code
 
         static void Main(string[] args)
         {
-            MyMath.Precal_FactAndInv(1000000007L);
+            var t = _scanner.Integer();
 
-            var n = _scanner.Integer();
-            var m = _scanner.Integer();
-
-            var f = GetPrimeFact(m);
-            //foreach (var e in f) Console.Write(e + " ");
-            //Console.WriteLine();
-
-            var ret = 1L;
-            foreach(var t in f)
+            for (int cnt = 0; cnt < t; cnt++)
             {
-                ret *= MyMath.GetMcn_p(t.Value + n - 1, n - 1, 1000000007);
-                ret %= 1000000007L;
-            }
+                var n = _scanner.Integer();
+                var m = _scanner.Integer();
+                var c = new List<long>();
+                for (int i = 0; i < n; i++)
+                    c.Add(_scanner.Long());
 
-            IO.Printer.Out.WriteLine(ret);
-            IO.Printer.Out.Flush();
-        }
-       
-        static Dictionary<int, int> GetPrimeFact(int n)
-        {
-            var ret = new Dictionary<int, int>();
-            for (int d = 2; d * d <= n; d++)
-            {
-                while (n % d == 0)
+                var dp = Enumerable.Range(0, n).Select(i => long.MaxValue).ToList();
+                var seg = new Rmq();
+                seg.Init(n);
+
+                for (int i = n - 1; i >= 0; i--)
                 {
-                    if (!ret.ContainsKey(d)) ret[d] = 0;
-                    ret[d]++;
-                    n /= d;
+                    var val = long.MaxValue;
+                    if (n - 1 - i <= m) val = 0;
+                    else
+                    {
+                        //IO.Printer.Out.WriteLine("seg query: " + (i + 1) + " to " + (i + m + 1));
+                        val = seg.Query(i + 1, i + m + 1);
+                    }
+
+                    //IO.Printer.Out.WriteLine("seg update: " + i + ", " + (val == long.MaxValue ? long.MaxValue : c[i] == 0 ? long.MaxValue : val + c[i]));
+                    //IO.Printer.Out.WriteLine("dp[i]: " + val);
+
+                    if (i != 0)
+                        seg.Update(i, val == long.MaxValue ? long.MaxValue : c[i] == 0 ? long.MaxValue : val + c[i]);
+                    dp[i] = val;
                 }
+
+                IO.Printer.Out.WriteLine("Case #" + (cnt + 1) + ": " + (dp[0] == long.MaxValue ? -1 : dp[0]));
             }
-            if(n != 1)
-            {
-                if (!ret.ContainsKey(n)) ret[n] = 0;
-                ret[n]++;
-            }
-            return ret;
+
+            IO.Printer.Out.Flush();
         }
     }
 
@@ -99,6 +98,49 @@ namespace code
         public int Size(int x)
         {
             return -par[Root(x)];
+        }
+    }
+
+    public class Rmq
+    {
+        const int MAX_N = 1 << 21;
+        int _n;
+        long[] _dat = new long[2 * MAX_N - 1];
+
+        public void Init(int n)
+        {
+            _n = 1;
+            while (_n < n) _n *= 2;
+            for (int i = 0; i < _dat.Length; i++) _dat[i] = long.MaxValue;
+        }
+
+        public void Update(int k, long a)
+        {
+            k += _n - 1;
+
+            _dat[k] = a;
+            while (k > 0)
+            {
+                k = (k - 1) / 2;
+                _dat[k] = Math.Min(_dat[k * 2 + 1], _dat[k * 2 + 2]);
+            }
+        }
+
+        public long Query(int a, int b)
+        {
+            return Query(a, b, 0, 0, _n);
+        }
+
+        long Query(int a, int b, int k, int l, int r)
+        {
+            if (r <= a || b <= l) return long.MaxValue;
+            if (a <= l && r <= b) return _dat[k];
+            else
+            {
+                var vl = Query(a, b, k * 2 + 1, l, (l + r) / 2);
+                var vr = Query(a, b, k * 2 + 2, (l + r) / 2, r);
+                return Math.Min(vl, vr);
+            }
         }
     }
 
@@ -971,6 +1013,18 @@ namespace code
             {
                 if ((n & 1) == 1) ret = ret * x % mod;
                 x = x * x % mod;
+                n >>= 1;
+            }
+            return ret;
+        }
+
+        public static Int64 Pow(Int64 x, Int64 n)
+        {
+            Int64 ret = 1;
+            while (n > 0)
+            {
+                if ((n & 1) == 1) ret = ret * x;
+                x = x * x;
                 n >>= 1;
             }
             return ret;
