@@ -14,64 +14,23 @@ namespace code
         static void Main(string[] args)
         {
             var t = _scanner.Integer();
-
-            for (int cnt = 0; cnt < t; cnt++)
-            {
-                var n = _scanner.Integer();
-                var m = _scanner.Integer();
-                var c = new List<long>();
-                for (int i = 0; i < n; i++)
-                    c.Add(_scanner.Long());
-
-                var dp = Enumerable.Range(0, n).Select(i => long.MaxValue).ToList();
-                var seg = new Rmq();
-                seg.Init(n);
-
-                for (int i = n - 1; i >= 0; i--)
-                {
-                    var val = long.MaxValue;
-                    if (n - 1 - i <= m) val = 0;
-                    else
-                    {
-                        //IO.Printer.Out.WriteLine("seg query: " + (i + 1) + " to " + (i + m + 1));
-                        val = seg.Query(i + 1, i + m + 1);
-                    }
-
-                    //IO.Printer.Out.WriteLine("seg update: " + i + ", " + (val == long.MaxValue ? long.MaxValue : c[i] == 0 ? long.MaxValue : val + c[i]));
-                    //IO.Printer.Out.WriteLine("dp[i]: " + val);
-
-                    if (i != 0)
-                        seg.Update(i, val == long.MaxValue ? long.MaxValue : c[i] == 0 ? long.MaxValue : val + c[i]);
-                    dp[i] = val;
-                }
-
-                IO.Printer.Out.WriteLine("Case #" + (cnt + 1) + ": " + (dp[0] == long.MaxValue ? -1 : dp[0]));
-            }
-
-            IO.Printer.Out.Flush();
-        }
+        }       
     }
 
     #region library
 
     public class UnionFind
     {
-        List<int> par;
+        List<int> _parent;
 
         public UnionFind(int N)
         {
-            par = new List<int>(N);
-            for (int i = 0; i < N; i++) par.Add(-1);
-        }
-
-        public void Init()
-        {
-            for (int i = 0; i < par.Count; i++) par[i] = -1;
+            _parent = Enumerable.Range(0, N).Select(i => i).ToList();
         }
 
         public int Root(int x)
         {
-            return par[x] >= 0 ? par[x] = Root(par[x]) : x;
+            return _parent[x] == x ? x : _parent[x] = Root(_parent[x]);
         }
 
         public bool Same(int x, int y)
@@ -79,25 +38,9 @@ namespace code
             return Root(x) == Root(y);
         }
 
-        public bool Unite(int x, int y)
+        public void Unite(int x, int y)
         {
-            x = Root(x);
-            y = Root(y);
-            if (x == y) return false;
-            if (par[x] > par[y])
-            {
-                var tmp = y;
-                y = x;
-                x = tmp;
-            }
-            par[x] += par[y];
-            par[y] = x;
-            return true;
-        }
-
-        public int Size(int x)
-        {
-            return -par[Root(x)];
+            _parent[Root(x)] = Root(y);
         }
     }
 
